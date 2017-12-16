@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Tiffany Chan</title>
+  <meta name="description" content="Official Portfolio Website of Tiffany Chan">
+  <meta name"viewport" content="width=device-width, initial-scale=1">
+  <meta charset="uft-8">
+  <link href="https://fonts.googleapis.com/css?family=Comfortaa" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body id="fillBackground">
+  <button onclick="topFunction()" id="backTop" title="Go To Top">Top</button>
+
+ <header id="header">
+ <div id="logo"><a href=""><img src="images/sig2.gif" alt="Tiffany Chan" height="72" weight="52"></a></div>
+      <!--.navbar header -->
+       <nav id="nav">
+         <ul>
+          <li><a href="#home" class="active" title="Next Section">Home</a></li>
+          <li><a href="#aboutme" title="Next Section">About Me</a></li>
+          <li><a href="#resume" title="Next Section">Resume</a></li>
+          <li><a href="#portfolio" title="Next Section">Portfolio</a></li>
+         </ul>
+      </nav>
+     </div>
+  </header>
+
+<!--script that gives action to the back top button-->
+  <script>
+  // When the user scrolls down 20px from the top of the document, show the button
+  window.onscroll = function() {scrollFunction()};
+
+  function scrollFunction() {
+      if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+          document.getElementById("backTop").style.display = "block";
+      } else {
+          document.getElementById("backTop").style.display = "none";
+      }
+  }
+
+  // When the user clicks on the button, scroll to the top of the document
+  function topFunction() {
+      document.body.scrollTop = 0; // For Safari
+      document.documentElement.scrollTop = 0; // For Chrome, Firefox, IE and Opera
+  }
+  </script>
+
+<!--Slides-->
+  <!--About Me Title-->
+  <div id="aboutme">
+      <h1>ABOUT ME</h1>
+      <div class="container">
+      <div class="row">
+        <div class="span4"></div>
+        <!--About Me Terminal Image-->
+        <div class="span4"><img class="center-block" src="images/aboutmeTerminal.png" height="650" width="700"/><br></div>
+        <!--3 Photos-->
+        <div class="selfPhotos">
+          <img src="images/travel.jpg" height="330" width="250"/>
+          <img src="images/csphoto.jpg" height="330" width="390"/>
+          <img src="images/sdc.jpg" height="330" width="250"/>
+        </div>
+        <!--Contact Linked Information-->
+        <br><div class="contact">
+          <a href="mailto:tiffany.chan@queensu.ca?Subject=Hello Tiffany!" target="_top"><img src="images/mail.png" align="center" height="25" width="40"></a>
+          <a href="https://www.linkedin.com/in/tiffanywgchan/" target="_blank"><img src="images/linkedinlogo.png" align="center" height="30" width="35"></a>
+        </div>
+      <div class="span4"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div id="resume">
+      <div class="container">
+        <div class="row">
+          <div class="span4"></div>
+          <!--Resume Title-->
+            <h1>RESUME</h1>
+            <!--Resume PDF Download-->
+            <h2 id="resumeDownload"><a href="Documents/TiffanyChan_Resume.pdf" target="_blank">PDF Download</a></h2>
+            <!--Education Section w/ divider-->
+            <br><p class="section-tagline" style="text-align:left;">Education</p>
+            <hr><div><p>
+              <br><img id="queenslogo" style="float: left;" src="images/queenslogo.png" height="80" width="60"/>
+              <b id="description">Queen's University</b>
+              <span id="dateSchool"><i>Sept 2015 - Present</i></span>
+              <br/><b id="description">Computer Science, BSc specialization Software Design</b>
+					    <span id="locationSchool"><i>Kingston, ON</i></span><br/><br/>
+              <!--Courses Taken-->
+              <br><br><p id="courseTitle">Relevant Coursework:</p>
+						<ul id="courses" style="list-style:circle;">
+									<li>CISC365: Algorithms</li>
+									<li>CISC235: Data Structures</li>
+									<li>CISC327: Software Quality Assurance</li>
+									<li>CISC102 & CISC203: Discrete Mathematics I & II</li>
+									<li>CISC340: Digital Systems</li>
+                  <li>CISC204: Logic</li>
+                  <li>CISC220: System-Level Programming</li>
+                  <li>CISC223: Software Specification</li>
+                  <li>CISC221: Computer Architecture</li>
+								</ul>
+            </p></div>
+
+            <!--Relevant Work Experience Section w/ divider-->
+            <br><p class="section-tagline" style="text-align:left;">Relevent Work Experience</p>
+            <hr><div><p>
+              <!-- Computing TA Description-->
+              <br><img id="queenslogo" style="float: left;" src="images/qcomputing.gif" height="80" width="70"/>
+              <br><b id="description">Queen's University Computing Teaching Assistant</b>
+              <span id="dateWork"><i>Dec 2017 - Present</i></span>
+              <br/><b id="description">CISC221: Computer Architecture</b>
+              <span id="locationWork"><i>Kingston, ON</i></span><br/><br/>
+              <ul id="courses" style="list-style:circle;">
+                <li>Provided...</li>
+                <li>Did...</li>
+              </ul>
+
+              <br><br><img id="queenslogo" style="float:left;" src="images/asus.png" height="70" width="70"/>
+              <br><b id="description">Queen's University ASUS Computing Tutor</b>
+              <span id="dateWork"><i>Sept 2017 - Present</i></span>
+              <span id="locationWork"><i>Kingston, ON</i></span><br/><br/>
+              <p id="courseTitle">Courses Tutored:</p>
+              <ul id="courses" style="list-style:circle;">
+                <li>CISC220: System-Level Programming</li>
+                <li>CISC203: Discrete Mathematics I</li>
+                <li>CISC204: Logic</li>
+              </ul>
+
+            </p><div class="span4"></div>
+          </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="portfolio">
+      <h1>PORTFOLIO</h1>
+
+  </div>
+  <!--Slides end-->
+</body>
+</html>
