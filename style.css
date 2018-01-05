@@ -78,13 +78,13 @@ body{
   display: block;
   margin: 0 auto;
   list-style: none;
+  color: #5D6D7E;
 }
 
 #nav li {
   margin-top: 9px;
   float: left;
   padding-left: 21px;
-  color: #5D6D7E;
 }
 
 #nav li a {
