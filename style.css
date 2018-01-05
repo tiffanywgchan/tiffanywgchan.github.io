@@ -123,11 +123,6 @@ body{
   margin-left: 190px
 }
 
-.contact {
-  margin-top: 30px;
-  text-align: center;
-}
-
 h1 {
   font-weight: 300;
   font-size: 50px;
@@ -136,7 +131,7 @@ h1 {
 
 #resume {
   background-color: #E9E4E4;
-  height: 410vh; ;
+  height: 420vh; ;
   padding: 40px; 0;
 }
 
@@ -308,4 +303,14 @@ hr {
 #portfolioDate {
   font-size: 15px;
   margin-left: 100px;
+}
+
+#contact {
+  margin-top: 60px;
+  text-align: center;
+}
+
+#copyright {
+  margin: 5px; ;
+  font-size: 14px;
 }
