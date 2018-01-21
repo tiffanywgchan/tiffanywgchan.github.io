@@ -31,7 +31,7 @@ body{
   height: 100vh;
   background-image: url(images/background.png);
   background-position: center;
-  background-attachment: initial;
+  background-attachment: local;
   background-size: cover;
   background-repeat: no-repeat;
   margin-right: auto;
