@@ -3,7 +3,6 @@ body{
   padding: 0px;
   width: 100%;
   font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
-
 }
 
 .center {
@@ -12,17 +11,18 @@ body{
 
 .content {
   margin: 0 auto;
-  width: 960px;
+  width: auto;
+  height: auto;
 }
 
 .clear {
   clear: both;
 }
 
-@media screen and (min-width: 1000px) {
+@media screen and (min-width: auto; ) {
   #container {
-    height: 700px;
-    width: 1000px;
+    height: auto;
+    width: auto;
     margin: 0 auto;
   }
 }
@@ -78,7 +78,6 @@ body{
   display: block;
   margin: 0 auto;
   list-style: none;
-  color: #5D6D7E;
 }
 
 #nav li {
@@ -107,8 +106,6 @@ body{
 
 #aboutme {
   background-color: #DBDBDB;
-  height: 1137px;
-  margin: 0 auto;
   overflow: hidden;
   padding: 40px 0;
 }
@@ -119,8 +116,8 @@ body{
     margin-right: auto;
  }
 
-.selfPhotos {
-  margin-left: 190px
+#selfPhotos {
+  text-align: center;
 }
 
 h1 {
@@ -131,7 +128,6 @@ h1 {
 
 #resume {
   background-color: #E9E4E4;
-  height: 420vh; ;
   padding: 40px; 0;
 }
 
@@ -170,12 +166,12 @@ hr {
 
 #dateSchool {
   font-size: 16px;
-  padding-left: 690px;
+  float: right;
 }
 
 #locationSchool {
   font-size: 16px;
-  padding-left: 420px;
+  float: right;
 }
 
 #courseTitle {
@@ -190,100 +186,19 @@ hr {
 
 #dateWork {
   font-size: 16px;
-  padding-left: 490px;
+  float: right;
 }
 
 #locationWork {
   font-size: 16px;
-  padding-left: 680px;
-}
-
-#dateASUS {
-  font-size: 16px;
-  padding-left: 330px;
-}
-
-#locationASUS {
-  font-size: 16px;
-  padding-left: 660px;
+  float: right;
 }
 
 #loyal-logo {
   padding-left: 30px;
 }
 
-#date-loyal {
-  font-size: 16px;
-  padding-left: 400px;
-}
-
-#location-loyal {
-  font-size: 16px;
-  padding-left: 860px;
-}
-
-#dateAMS {
-  font-size: 16px;
-  padding-left: 380px;
-}
-
-#locationAMS {
-  font-size: 16px;
-  padding-left: 860px;
-}
-
-#dateSDC {
-  font-size: 16px;
-  padding-left: 420px;
-}
-
-#locationSDC {
-  font-size: 16px;
-  padding-left: 655px;
-}
-
-#dateAmbassador {
-  font-size: 16px;
-  padding-left: 500px;
-}
-
-#locationAmbassador {
-  font-size: 16px;
-  padding-left: 680px;
-}
-
-#dateCOMPSA {
-  font-size: 16px;
-  padding-left: 410px;
-}
-
-#locationCOMPSA {
-  font-size: 16px;
-  padding-left: 700px;
-}
-
-#dateTC {
-  font-size: 16px;
-  padding-left: 385px;
-}
-
-#locationTC {
-  font-size: 16px;
-  padding-left: 640px;
-}
-
-#dateMargu {
-  font-size: 16px;
-  padding-left: 690px;
-}
-
-#locationMargu {
-  font-size: 16px;
-  padding-left: 570px;
-}
-
 #portfolio {
-  height: 125vh;
   background-color: #DBDBDB;
   padding: 40px 0;
 }
@@ -306,11 +221,13 @@ hr {
 }
 
 #contact {
-  margin-top: 60px;
+  background-color: #DBDBDB;
+  background-size:cover;
   text-align: center;
 }
 
 #copyright {
-  margin: 5px; ;
+  margin: 5px;
+  margin-bottom: auto;
   font-size: 14px;
 }
