@@ -1,0 +1,435 @@
+from __future__ import unicode_literals
+
+import base64
+import datetime
+import json
+import xlrd
+import requests
+from alm_setup import *
+from pprint import pprint
+sys.path.append(os.path.dirname(os.path.realpath(sys.argv[0]))[:-7])
+pprint(sys.path)
+from dbConnectors.mongo_wrapper import MongoWrapper
+from websocket import create_connection
+from django.conf import settings
+
+ALM_Options = [
+"CREATE",
+# "UPDATE",
+"DELETE",
+"RUN"
+]
+
+PORTAL_LINK = '10.101.129.174'
+DATADRIVEN_LINK = "ws://"  + PORTAL_LINK + "/datadriven/"
+
+# Decorate requests.post
+def post_decorator(func):
+    """This will try the post 5 times until it gets a 200 status code"""
+    def wait_for_200(request, *args, **kwargs):
+        pprint("Sending Request to {0}".format(request))
+        pprint("Data:")
+        pprint(kwargs['data'])
+        r = None
+        for _ in range(5):
+            r = func(request, *args, **kwargs)
+            if r.status_code == 200:
+                break
+        else:
+            pprint("POST fail in " + request)
+        pprint(r.status_code)
+        pprint(r.content)
+        return r
+    return wait_for_200
+requests.post = post_decorator(requests.post)
+
+# Check if option is valid
+db = MongoWrapper()
+if len(sys.argv) < 3:
+    pprint("Usage: alm.py [OPTION] [EXCEL ID]")
+    exit()
+option = str(sys.argv[1])
+mongo_row_id = str(sys.argv[2])
+popped_row = str(sys.argv[3])
+alm_profile_name = str(sys.argv[4])
+jenkins_build_id = str(sys.argv[5])
+
+if option not in ALM_Options:
+    pprint("{0} is not a valid option".format(option))
+    exit()
+
+if not str(mongo_row_id).isdigit():
+    pprint("{0} is not valid EXCEL ID".format(mongo_row_id))
+    exit()
+
+DB_ROW = {}
+if popped_row != "":
+    DB_ROW = json.loads(base64.b64decode(popped_row))
+else:
+    if db.check_id_exists(str(mongo_row_id)):
+        DB_ROW = db.find_from_collection({"ID": str(mongo_row_id)})
+    else:
+        pprint("ROW ID {0} is not in  ".format(mongo_row_id))
+        exit()
+if alm_profile_name not in ALM_PROFILE_LIST:
+    print("ALM PROFILE NAME NOT IN ALM PROFILE LIST, EXITING!")
+    sys.exit()
+ALM_Profile = ALM_PROFILE_LIST[alm_profile_name]
+# Set Common JSON data to be sent to ALM Connector
+ALM_Common_Data = {
+    "url": ALM_Profile["ALM URL"],
+    "domain": ALM_Profile["ALM Domain"],
+    "project": ALM_Profile["ALM Project"],
+    "username": ALM_Profile["ALM Username"],
+    "password": ALM_Profile["ALM Password"]
+}
+print("Proceeding with ALM PROFILE: {0}\n{1}".format(alm_profile_name, ALM_Profile))
+print("Proceeding with ALM COMMON DATA: {0}".format(alm_profile_name))
+print("Proceeding with row data:")
+pprint(DB_ROW)
+# Define test name
+test_name = str(DB_ROW["input_file"])[:str(DB_ROW["input_file"]).rfind(".")]
+
+
+
+# CREATE TEST CASE
+if option == 'CREATE':
+    ALM_Common_Data['folderid'] = ALM_Profile["Test Plan ID"]
+    ALM_Common_Data['custom'] = Test_Plan_Custom
+    ALM_Common_Data['name'] = test_name
+    ALM_Common_Data['description'] = "[" + str(datetime.datetime.now())[0:19] + "]   "
+    # ALM_Common_Data['description'] += str(DB_ROW["input_file"]) + " is uploaded\n\n"
+    # ALM_Common_Data['description'] += "You can download it from: " + "http://xssal975/datadriven/"
+    # ALM_Common_Data['description'] += str(DB_ROW["input_file"])
+
+    r = requests.post(
+        ALM_Connector_URL + "/tests",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(ALM_Common_Data)
+    )
+
+    if r.status_code == 200:
+        json_response = json.loads(r.content)
+        pprint("Testcase created successfully Test ID = {0}".format(json_response['id']))
+        DB_ROW['test_id'] = json_response['id']
+        DB_ROW['test_description'] = ALM_Common_Data['description']
+
+        # CODE TO CREATE TEST CONFIGS
+        Config_Data = ALM_Common_Data.copy()
+        Config_Data['parentid'] = json_response['id']
+        # Read Excel File
+        excel_file_path = ALM_Profile["Excel Data Input Dir"] + DB_ROW['input_file']
+        workbook = xlrd.open_workbook(excel_file_path)
+        test_configs = []
+
+        if alm_profile_name == "Apply_Program_Profile":
+            sheet_names = [workbook.sheet_names()[1]]
+        else:
+            sheet_names = workbook.sheet_names()
+
+        # Loop through every sheet
+        for sheet in range(len(sheet_names)):
+            current_sheet = workbook.sheet_by_name(sheet_names[sheet])
+            for row_index in range(1, current_sheet.nrows):
+                name_desc = "Test_Config -"
+                for column in range(current_sheet.ncols):
+                    name_desc = name_desc + " " + str(current_sheet.cell(row_index, column).value)
+
+                Config_Data['name'] = '[' + str(row_index) + ']' + name_desc
+                Config_Data['description'] = name_desc
+                Config_Data['owner'] = ALM_Profile["ALM Username"]
+
+                config_response = requests.post(
+                    ALM_Connector_URL + "/test-configs/",
+                    headers={"Content-Type": "application/json"},
+                    data=json.dumps(Config_Data),
+                    verify=False
+                )
+
+                if config_response.status_code == 200:
+                    json_response = json.loads(config_response.content)
+                    test_configs.append({str(row_index): format(json_response['id'])})
+                    pprint("Testconfig ID = {0}".format(json_response['id']))
+                    pprint("Test config created successfully")
+                else:
+                    pprint("Failed to create test config")
+
+        pprint("Updating Mongo Data..")
+        if db.update_one({"ID": str(mongo_row_id)}, DB_ROW) and \
+           db.update_one({"ID": str(mongo_row_id)}, {'test_configs': test_configs}):
+            pprint("Update successful!")
+            pprint("Done!")
+        else:
+            pprint("Could not update DB")
+    else:
+        pprint("ERROR Creating Test Case!")
+    # Send complete upload signal
+    ws = create_connection(DATADRIVEN_LINK)
+    print("socket opened")
+    ws.send(json.dumps({'stream': 'update_status',
+                        'payload': {'TEST_ID': mongo_row_id,
+                                    'BUILD_ID': jenkins_build_id,
+                                    'STATUS': 1,
+                                    'RESULT_FILE_NAME': "",
+                                    'PASS': 'N/A',
+                                    'FAIL': 'N/A',
+                                    }
+                        }))
+    ws.close()
+    print("socket closed")
+    exit()
+
+# UPDATE TEST CASE
+# elif option == 'UPDATE':
+#     ALM_Common_Data['custom'] = Test_Plan_Custom
+#     ALM_Common_Data['name'] = test_name
+#     ALM_Common_Data['description'] = "[" + str(datetime.datetime.now())[0:19] + "]   "
+#     ALM_Common_Data['description'] += str(DB_ROW['input_file']) + " is re-uploaded"
+#     ALM_Common_Data['description'] += "\n\n"
+#     ALM_Common_Data['description'] += str(DB_ROW['test_description'])
+#
+#     pprint("Sending Request to {0}/tests/{1}".format(ALM_Connector_URL, DB_ROW['test_id']))
+#     pprint("Data: {0}".format(ALM_Common_Data))
+#     r = requests.put(
+#         ALM_Connector_URL + "/tests/" + DB_ROW['test_id'],
+#         headers={"Content-Type": "application/json"},
+#         data=json.dumps(ALM_Common_Data)
+#     )
+#     pprint(r.status_code)
+#     pprint(r.content)
+#     if r.status_code == 200:
+#         json_response = json.loads(r.content)
+#         pprint("JSON Response -> " + str(json_response))
+#         pprint("Updating EXCEL DATA..")
+#         DB_ROW['test_description'] = ALM_Common_Data['description']
+#         if db.update_one({"ID": str(mongo_row_id)},DB_ROW):
+#             pprint("Update successful!")
+#             pprint("Done!")
+#         else:
+#             pprint("Could not update DB")
+#     else:
+#         pprint("ERROR Updating Test Case!")
+#     exit()
+
+# DELETE TEST CASE
+elif option == 'DELETE':
+    Update_Parent_ID = ALM_Common_Data.copy()
+    Update_Parent_ID['parentid'] = ALM_Profile["Recycle Bin ID"]
+    Update_Parent_ID['name'] = test_name
+    pprint("Sending Request to {0}/tests/{1}".format(ALM_Connector_URL, DB_ROW['test_id']))
+    pprint("Data: {0}".format(Update_Parent_ID))
+    r = requests.put(
+        ALM_Connector_URL + "/tests/" + DB_ROW['test_id'],
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(Update_Parent_ID)
+    )
+    pprint(r.status_code)
+    pprint(r.content)
+    if r.status_code == 200:
+        json_response = json.loads(r.content)
+        pprint("JSON Response 1 -> " + str(json_response))
+        print("DELETED TEST SET FROM ALM")
+        pprint("Done!")
+    else:
+        pprint("ERROR Deleting Test Case!")
+
+    Update_Test_Name = ALM_Common_Data.copy()
+    Update_Test_Name['name'] = test_name + " " + str(datetime.datetime.now())
+    pprint("Sending Request to {0}/tests/{1}".format(ALM_Connector_URL, DB_ROW['test_id']))
+    pprint("Data: {0}".format(Update_Test_Name))
+    r2 = requests.put(
+        ALM_Connector_URL + "/tests/" + DB_ROW['test_id'],
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(Update_Test_Name)
+    )
+    pprint(r2.status_code)
+    pprint(r2.content)
+    if r2.status_code == 200:
+        json_response2 = json.loads(r2.content)
+        pprint("JSON Response 2 -> " + str(json_response2))
+        pprint("Done!")
+    else:
+        pprint("ERROR Deleting Test Case!")
+    exit()
+
+# RUN TEST CASE
+elif option == 'RUN':
+    run_data = {
+        "test_set_id": '',
+        "test_instance_id": '',
+        "test_run_id": '',
+    }
+
+    # Create Test Set
+    pprint("Creating Test Set...")
+    Test_Set = ALM_Common_Data.copy()
+    Test_Set['folderid'] = ALM_Profile["Test Lab ID"]
+    Test_Set['name'] = test_name + " " + str(datetime.datetime.now())[0:19]
+    Test_Set['custom'] = Test_Lab_Custom
+
+    r1 = requests.post(
+        ALM_Connector_URL + "/testset/",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(Test_Set)
+    )
+
+    json_response1 = json.loads(r1.content)
+
+    if r1.status_code == 200:
+        pprint("Test Set ID = {0}.".format(json_response1['id']))
+        run_data['test_set_id'] = json_response1['id']
+        pprint("Successfully created Test Set.")
+    else:
+        pprint("ERROR Creating Test Set!")
+        exit()
+
+    # Create Test Instances
+    pprint("Creating Test Instance...")
+    Test_Instance = ALM_Common_Data.copy()
+    Test_Instance['testsetid'] = run_data['test_set_id']
+    Test_Instance['testid'] = DB_ROW['test_id']
+
+    # Read Excel File
+    excel_file_path = ALM_Profile["Excel Data Output Dir"] + DB_ROW['result_file']
+    workbook = xlrd.open_workbook(excel_file_path)
+    if alm_profile_name == "Apply_Program_Profile":
+        sheet_names = [workbook.sheet_names()[1]]
+    else:
+        sheet_names = workbook.sheet_names()
+
+    # merge the list of test_config dictionaries into one dictionary
+    valid_rows = {}
+    for config in DB_ROW['test_configs']:
+        ID = config.keys()[0]
+        valid_rows[ID] = config[ID]
+
+    # Create Test Instances and Test Runs for each row
+    for sheet in range(len(sheet_names)):
+        current_sheet = workbook.sheet_by_name(sheet_names[sheet])
+        # LOOK FOR EXECUTION_RESULT IN ROW 1
+        result_col = 0
+        for column_index in range(0, current_sheet.ncols):
+            if current_sheet.cell(0, column_index).value == 'EXECUTION_RESULT':
+                result_col = column_index
+                break
+        else:
+            pprint("COULDNT FIND THE RESULTS COLUMN")
+        for row_index in range(1, current_sheet.nrows):
+            # Create Test Instance
+            if str(row_index) not in valid_rows:
+                continue
+            Test_Instance['testconfigid'] = valid_rows[str(row_index)]
+
+            r2 = requests.post(
+                ALM_Connector_URL + "/testinstance/",
+                headers={"Content-Type": "application/json"},
+                data=json.dumps(Test_Instance)
+            )
+
+            if r2.status_code == 200:
+                json_response2 = json.loads(r2.content)
+                run_data['test_instance_id'] = json_response2['id']
+                pprint("Successfully created Test Instance.")
+            else:
+                pprint("ERROR Creating Test Instance!")
+                exit()
+
+            # Create Test Run - status -> PASSED or FAILED
+            pprint("Creating Test Run...")
+            Test_Run = ALM_Common_Data.copy()
+            Test_Run['testsetid'] = run_data['test_set_id']
+            Test_Run['testid'] = DB_ROW['test_id']
+            Test_Run['testinstanceid'] = run_data['test_instance_id']
+            if current_sheet.cell(row_index, result_col).value == 'PASS':
+                Test_Run['status'] = "Passed"
+            else:
+                Test_Run['status'] = "Failed"
+            Test_Run['comments'] = DB_ROW['test_comments']
+
+            r3 = requests.post(
+                ALM_Connector_URL + "/testrun/",
+                headers={"Content-Type": "application/json"},
+                data=json.dumps(Test_Run)
+            )
+
+    json_response3 = json.loads(r3.content)
+
+    if r3.status_code == 200:
+        pprint("Test Run ID = {0}.".format(json_response3['id']))
+        run_data['test_run_id'] = json_response3['id']
+        pprint("Successfully created Test Run.")
+    else:
+        pprint("ERROR Creating Test Run!")
+        exit()
+
+    # Update EXCEL Dict
+    pprint("Updating excel dictionary (save.p).")
+    DB_ROW['test_set_id'] = run_data['test_set_id']
+    DB_ROW['test_instance_id'] = run_data['test_instance_id']
+    DB_ROW['test_run_id'] = run_data['test_run_id']
+    db.update_one({"ID": str(mongo_row_id)}, DB_ROW)
+    pprint("Updated to: {0}".format(DB_ROW))
+
+    # Upload result file
+    excel_file_path = ALM_Profile["Excel Data Output Dir"] + DB_ROW['result_file']
+    ############################
+    f = open(excel_file_path, 'rb').read()
+    bin_data = base64.b64encode(f)
+    ##############################
+    Upload_Attachment = ALM_Common_Data.copy()
+    Upload_Attachment['entity'] = 'runs'
+    Upload_Attachment['id'] = run_data['test_run_id']
+    Upload_Attachment['filename'] = DB_ROW['input_file']
+    Upload_Attachment['binary'] = bin_data
+
+    r4 = requests.post(
+        ALM_Connector_URL + "/attachment/",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(Upload_Attachment)
+    )
+
+    json_response4 = json.loads(r4.content)
+
+    if r4.status_code == 200:
+        pprint("Upload ID = {0}.".format(json_response4['id']))
+        pprint("Uploaded {0} successfully.".format(DB_ROW['input_file']))
+    else:
+        pprint("ERROR Uploading!")
+        exit()
+
+    # Change status to "Automated" after execution
+    if DB_ROW['automation'] is False:
+        ALM_Common_Data['custom'] = [{'name': 'user-08', 'value': 'Automated'}]
+        ALM_Common_Data['name'] = test_name
+        ALM_Common_Data['description'] = "[" + str(datetime.datetime.now())[0:19] + "]   "
+        ALM_Common_Data['description'] += "Changed Automation Status to 'Automated'"
+        ALM_Common_Data['description'] += "\n\n"
+        ALM_Common_Data['description'] += str(DB_ROW['test_description'])
+
+        pprint("Sending Request to {0}/tests/{1}".format(ALM_Connector_URL, DB_ROW['test_id']))
+        pprint("Data: {0}".format(ALM_Common_Data))
+        r5 = requests.put(
+            ALM_Connector_URL + "/tests/" + DB_ROW['test_id'],
+            headers={"Content-Type": "application/json"},
+            data=json.dumps(ALM_Common_Data)
+        )
+        pprint(r5.status_code)
+        pprint(r5.content)
+        if r5.status_code == 200:
+            json_response5 = json.loads(r5.content)
+            pprint("JSON Response -> " + str(json_response5))
+            pprint("Updating EXCEL DATA..")
+            DB_ROW['test_description'] = ALM_Common_Data['description']
+            DB_ROW['automation'] = True
+            if db.update_one({"ID": str(mongo_row_id)}, DB_ROW):
+                pprint("Update successful!")
+                pprint("Done!")
+            else:
+                pprint("Could not update DB")
+        else:
+            pprint("ERROR Updating Test Case!")
+        exit()
+        
+
+# End execution
+quit()
